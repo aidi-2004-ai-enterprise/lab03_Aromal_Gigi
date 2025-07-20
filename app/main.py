@@ -1,8 +1,3 @@
-"""
-FastAPI application for predicting penguin species using
-a pretrained XGBoost model.
-"""
-
 import json
 import logging
 from enum import Enum
@@ -17,23 +12,21 @@ from pydantic import BaseModel
 from starlette.status import HTTP_400_BAD_REQUEST
 from xgboost import XGBClassifier
 
-# Enums for categorical validation 
+# 1. Enums for categorical validation
 class Island(str, Enum):
-    """Enum of valid penguin island names."""
+    """Valid penguin island options."""
     Torgersen = "Torgersen"
     Biscoe    = "Biscoe"
     Dream     = "Dream"
 
-
 class Sex(str, Enum):
-    """Enum of valid penguin sex values."""
+    """Valid penguin sex options."""
     male   = "male"
     female = "female"
 
-
-#  Pydantic model for input schema 
+# 2. Pydantic request model
 class PenguinFeatures(BaseModel):
-    """Feature schema for the /predict endpoint."""
+    """Request schema for /predict endpoint."""
     bill_length_mm:    float
     bill_depth_mm:     float
     flipper_length_mm: float
@@ -42,103 +35,67 @@ class PenguinFeatures(BaseModel):
     sex:               Sex
     island:            Island
 
-
-# FastAPI app & logger setup 
+# 3. App & logger setup
 app = FastAPI()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("penguin-api")
 
-# Globals for model & metadata 
-model: XGBClassifier
-FEATURE_COLUMNS: List[str] = []
-LABEL_CLASSES: List[str] = []
-
-
-# Custom handler for validation errors 
+# 4. Validation exception handler
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
-    """
-    Return HTTP 400 with details when request validation fails.
-    """
-    logger.debug(f"Validation error for {request.url}: {exc}")
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return HTTP 400 when request validation fails."""
+    logger.debug(f"Validation error on {request.url}: {exc}")
     return JSONResponse(
         status_code=HTTP_400_BAD_REQUEST,
         content={"detail": exc.errors()},
     )
 
+# 5. Load model & metadata at startup
+data_dir = Path(__file__).parent / "data"
+model = XGBClassifier()
+model.load_model(str(data_dir / "model.json"))
+with open(data_dir / "metadata.json", "r") as f:
+    meta: Dict[str, List[str]] = json.load(f)
 
-# Load model & metadata on startup 
-@app.on_event("startup")
-def load_model_and_metadata() -> None:
-    """
-    Load the XGBoost model and metadata (feature columns, label classes)
-    when the application starts.
-    """
-    global model, FEATURE_COLUMNS, LABEL_CLASSES
+FEATURE_COLUMNS = meta["feature_columns"]
+LABEL_CLASSES   = meta["label_classes"]
+logger.info(f"Loaded model with {len(FEATURE_COLUMNS)} features and {len(LABEL_CLASSES)} classes")
 
-    data_dir = Path(__file__).parent / "data"
-    model_path = data_dir / "model.json"
-    metadata_path = data_dir / "metadata.json"
+# 6. Greeting endpoint at root
+@app.get("/", include_in_schema=False)
+def read_root():
+    """Root endpoint returning a welcome message."""
+    return {"message": " Hello! Welcome to the Penguins Classification API."}
 
-    logger.info(f"Loading model from {model_path}")
-    if not model_path.exists() or not metadata_path.exists():
-        logger.error("Model or metadata file not found! Run train.py first.")
-        raise FileNotFoundError("Model or metadata file not found.")
-
-    # Load model
-    model = XGBClassifier()
-    model.load_model(str(model_path))
-
-    # Load metadata
-    with open(metadata_path, "r") as f:
-        meta: Dict[str, List[str]] = json.load(f)
-    FEATURE_COLUMNS = meta["feature_columns"]
-    LABEL_CLASSES = meta["label_classes"]
-
-    logger.info(f"Model loaded with {len(FEATURE_COLUMNS)} features and {len(LABEL_CLASSES)} classes")
-
-
-# Health-check endpoint 
+# 7. Health-check endpoint
 @app.get("/health")
-def health_check() -> Dict[str, str]:
-    """
-    Simple endpoint to verify the API is running.
-    """
+def health_check():
+    """Simple health check endpoint."""
     return {"status": "ok"}
 
-
-# Prediction endpoint 
+# 8. Prediction endpoint
 @app.post("/predict")
-def predict(features: PenguinFeatures) -> Dict[str, str]:
+def predict(features: PenguinFeatures):
     """
-    Predict the penguin species based on input features.
+    Predict the species of a penguin from provided features.
 
     Args:
-        features: A PenguinFeatures object validated by Pydantic.
+        features: Validated PenguinFeatures object.
 
     Returns:
-        A dict with the key "species" mapping to the predicted species name.
+        A dict with key 'species' mapping to the predicted species name.
     """
-    data = features.dict()
-    logger.debug(f"Received prediction request: {data}")
+    logger.info(f"Prediction requested: {features.dict()}")
 
-    # Build DataFrame and one-hot encode
-    try:
-        df = pd.DataFrame([data])
-        df_enc = pd.get_dummies(df, columns=["sex", "island"], prefix=["sex", "island"])
-        df_enc = df_enc.reindex(columns=FEATURE_COLUMNS, fill_value=0)
-    except Exception as e:
-        logger.debug(f"Error encoding input data: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid input data: {e}")
+    df = pd.DataFrame([features.dict()])
+    df = pd.get_dummies(df, columns=["sex", "island"])
+    df = df.reindex(columns=FEATURE_COLUMNS, fill_value=0)
 
-    # Perform prediction
     try:
-        pred = model.predict(df_enc)
-        species = LABEL_CLASSES[int(pred[0])]
-        logger.info(f"Predicted species: {species}")
-        return {"species": species}
+        pred = model.predict(df)[0]
+        result = LABEL_CLASSES[int(pred)]
+        logger.info(f"Prediction result: {result}")
+        return {"species": result}
     except Exception as e:
-        logger.error(f"Prediction failure: {e}")
-        raise HTTPException(status_code=500, detail="Internal prediction error.")
+        logger.error("Prediction failed", exc_info=e)
+        raise HTTPException(status_code=500, detail="Internal prediction error")
