@@ -64,8 +64,10 @@ Invoke-RestMethod `
   -Method POST `
   -ContentType "application/json" `
   -Body $body
-Expected Response:
+
 ```
+Expected Response:
+
 ```bash
 {"species":"Adelie"}
 ```
@@ -119,7 +121,7 @@ Expected Response:
   - Sending valid and invalid requests (for both `sex` & `island`)
     
 
-## 6. Acknowledgements & Dependencies
+## 6. Dependencies
 
 This project uses the following open-source libraries and tools:
 
