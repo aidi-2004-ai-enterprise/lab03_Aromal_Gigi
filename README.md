@@ -114,7 +114,7 @@ Expected Response:
 ```
 
 ## 5. Demo Video
-- A demo video (`demo.mp4`) is included, demonstrating:
+- A demo video (`Demo.mp4`) is included, demonstrating:
   - Running training and launching the server
   - Sending valid and invalid requests (for both `sex` & `island`)
     
