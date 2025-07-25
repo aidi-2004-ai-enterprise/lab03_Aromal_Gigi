@@ -1,4 +1,4 @@
-# Lab 3: Penguins Classification with XGBoost and FastAPI
+# Lab 3: Penguins Classification 
 
 This project builds a robust ML pipeline to classify penguin species. It includes data preprocessing, XGBoost model training, and deployment with FastAPI. All inputs are validated and the API is fully documented.
 
