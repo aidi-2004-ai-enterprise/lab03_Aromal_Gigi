@@ -1,7 +1,7 @@
 """
 Train an XGBoost classifier on the Seaborn penguins dataset,
 evaluate its performance, and save both the model and metadata
-for later use in the FastAPI application.
+
 """
 
 import json

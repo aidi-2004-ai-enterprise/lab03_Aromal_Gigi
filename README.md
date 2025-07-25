@@ -11,9 +11,10 @@ git clone https://github.com/aidi-2004-ai-enterprise/lab03_Aromal_Gigi.git
 cd lab3_Aromal_Gigi
 ```
 ```bash
+uv init
 uv venv .venv                        # Windows PowerShell
 .\.venv\Scripts\Activate.ps1         # Windows PowerShell
-# or: source .venv/bin/activate      # Mac/Linux
+
 uv pip install -r requirements.txt
 ```
 
@@ -82,7 +83,7 @@ Expected Response:
   "detail": [
     {
       "type": "enum",
-      "loc": ["body", "sex"],
+      "loc": ["body","sex"],
       "msg": "Input should be 'male' or 'female'",
       "input": "shemale",
       "ctx": {"expected": "'male' or 'female'"}
@@ -103,7 +104,7 @@ Expected Response:
   "detail": [
     {
       "type": "enum",
-      "loc": ["body", "island"],
+      "loc": ["body","island"],
       "msg": "Input should be 'Torgersen', 'Biscoe' or 'Dream'",
       "input": "Australia",
       "ctx": {"expected": "'Torgersen', 'Biscoe' or 'Dream'"}
